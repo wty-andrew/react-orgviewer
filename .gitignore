@@ -1,0 +1,5 @@
+node_modules/
+*.log
+demo/*
+!demo/index.html
+dist/

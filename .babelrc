@@ -1,0 +1,21 @@
+{
+  "presets": [
+    ["env", { "modules": false }],
+    "react",
+    "stage-2"
+  ],
+  "env": {
+    "development": {
+      "plugins": [
+        "react-hot-loader/babel"
+      ]
+    },
+    "production": {
+      "presets": [
+        "env",
+        "react",
+        "stage-2"
+      ]
+    }
+  }
+}
