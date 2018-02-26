@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "description": "A react component that renders org format",
   "main": "dist/index.js",
-  "author": "Andrew",
+  "author": {
+    "name": "Andrew",
+    "email": "wty.andrew@gmail.com"
+  },
   "license": "MIT",
   "keywords": ["react", "org", "org-mode"],
-  "repository": "",
+  "repository": "wty-andrew/react-orgviewer",
   "scripts": {
     "start": "cross-env NODE_ENV=development node server.js",
     "build": "rimraf dist && cross-env NODE_ENV=production webpack -p --config webpack.config.prod.js",
