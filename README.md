@@ -1,14 +1,19 @@
 # react-orgviewer
  
 A react component that renders org format
-
 -----
+
+## Demo
+
+see [example](https://wty-andrew.github.io/react-orgviewer/)
+
 
 ## Installation
 
 ```
 npm install react-orgviewer
 ```
+
 
 ## Basic usage
 
