@@ -1,7 +1,6 @@
 # react-orgviewer
  
 A react component that renders org format
------
 
 ## Demo
 
