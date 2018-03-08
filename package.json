@@ -1,6 +1,6 @@
 {
   "name": "react-orgviewer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A react component that renders org format",
   "main": "dist/index.js",
   "author": {
@@ -8,7 +8,11 @@
     "email": "wty.andrew@gmail.com"
   },
   "license": "MIT",
-  "keywords": ["react", "org", "org-mode"],
+  "keywords": [
+    "react",
+    "org",
+    "org-mode"
+  ],
   "repository": "wty-andrew/react-orgviewer",
   "scripts": {
     "start": "cross-env NODE_ENV=development node server.js",

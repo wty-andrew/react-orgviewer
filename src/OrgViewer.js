@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types, react/display-name */
-import React from 'react'
+import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import org from 'org'
 import SyntaxHighlighter from 'react-syntax-highlighter'
@@ -26,27 +26,69 @@ const defaultRenderOptions = {
   renderPreformatted: {},
   renderLink: (src, renderElement) =>
     renderElement('a')({ href: src, target: '_blank' }),
-  headerTag: {},
+  renderTag: {},
+  anchorPrefix: 'section',
 }
 
-const OrgViewer = ({ source, tocCallback, renderOptions = {}, ...props }) => {
-  const opts = { ...defaultRenderOptions, ...renderOptions }
-  const orgDocument = parser.parse(source)
-
-  if (typeof tocCallback === 'function') {
-    const headerNodes = orgDocument.nodes.filter(node => node.type === 'header')
-    // side effect, an "index" property is inserted into each header node
-    const headers = generateToc(headerNodes)
-    tocCallback(headers)
+export class OrgViewer extends Component {
+  static propTypes = {
+    source: PropTypes.string.isRequired,
+    tocCallback: PropTypes.func,
+    renderOptions: PropTypes.object,
   }
 
-  const renderElement = Tag => (children = [], props = {}) => {
+  static defaultProps = {
+    renderOptions: {},
+  }
+
+  state = {
+    nodes: [],
+    opts: { ...defaultRenderOptions, ...this.props.renderOptions },
+  }
+
+  componentWillMount() {
+    this.parseSource(this.props.source)
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.source !== this.props.source) {
+      this.parseSource(nextProps.source)
+    }
+  }
+
+  shouldComponentUpdate(nextProps) {
+    return nextProps.source !== this.props.source
+  }
+
+  parseSource = source => {
+    const { opts: { anchorPrefix } } = this.state
+    const { tocCallback } = this.props
+    const orgDocument = parser.parse(source || '')
+    const { nodes } = orgDocument
+
+    if (typeof tocCallback === 'function') {
+      const headerNodes = nodes.filter(node => node.type === 'header')
+      // side effect, an "index" property is inserted into each header node
+      const headers = generateToc(anchorPrefix)(headerNodes)
+      tocCallback(headers)
+    }
+    this.setState({ nodes })
+  }
+
+  render() {
+    // eslint-disable-next-line no-unused-vars
+    const { source, tocCallback, renderOptions, ...props } = this.props
+
+    return <div {...props}>{this.state.nodes.map(this.renderNode)}</div>
+  }
+
+  renderElement = Tag => (children = [], props = {}) => {
     let childNodes
     if (children.length === 1 && children[0].type === 'inlineContainer') {
       // to avoid addtional tag add by renderInlineContainer
-      childNodes = children[0].children.map(renderNode)
+      childNodes = children[0].children.map(this.renderNode)
     } else {
-      childNodes = children.map(renderNode)
+      childNodes = children.map(this.renderNode)
     }
 
     return (
@@ -56,19 +98,21 @@ const OrgViewer = ({ source, tocCallback, renderOptions = {}, ...props }) => {
     )
   }
 
-  const renderInlineContainer = ({ children }) => {
+  renderInlineContainer = ({ children }) => {
     return children.length > 1
-      ? renderElement('span')(children)
-      : renderNode(children[0])
+      ? this.renderElement('span')(children)
+      : this.renderNode(children[0])
   }
 
-  const renderDirective = ({ children, directiveName, directiveRawValue }) => {
+  renderDirective = ({ children, directiveName, directiveRawValue }) => {
+    const { opts } = this.state
+
     switch (directiveName) {
       case 'quote':
-        return renderElement('blockquote')(children)
+        return this.renderElement('blockquote')(children)
 
       case 'example':
-        return renderElement('pre')(children)
+        return this.renderElement('pre')(children)
 
       case 'src': {
         const { children: render = renderCodeBlock, ...props } = opts.renderSrc
@@ -86,11 +130,11 @@ const OrgViewer = ({ source, tocCallback, renderOptions = {}, ...props }) => {
     }
   }
 
-  const renderPreformatted = ({ children }) => {
+  renderPreformatted = ({ children }) => {
     const {
       children: render = renderCodeBlock,
       ...props
-    } = opts.renderPreformatted
+    } = this.state.opts.renderPreformatted
 
     return (
       <div key={randomId()} {...props}>
@@ -99,27 +143,27 @@ const OrgViewer = ({ source, tocCallback, renderOptions = {}, ...props }) => {
     )
   }
 
-  const renderLink = ({ src, children }) => {
+  renderLink = ({ src, children }) => {
     const renderElementWithChildren = tag => props =>
-      renderElement(tag)(children, props)
-    return opts.renderLink(src, renderElementWithChildren)
+      this.renderElement(tag)(children, props)
+    return this.state.opts.renderLink(src, renderElementWithChildren)
   }
 
-  const renderHeader = (node, prefix = 'section') => {
+  renderHeader = node => {
     const { level, children, index } = node
 
     const headerTag = level > 5 ? 'h6' : `h${level}`
     const props = {}
     if (index) {
-      props.id = `${prefix}-${index}`
+      props.id = index
     }
 
     const lastChild = getLastChild(node)
     if (lastChild.type !== 'text')
-      return renderElement(headerTag)(children, props)
+      return this.renderElement(headerTag)(children, props)
 
     const tagString = getTagString(lastChild.value)
-    if (!tagString) return renderElement(headerTag)(children, props)
+    if (!tagString) return this.renderElement(headerTag)(children, props)
 
     lastChild.value = lastChild.value.replace(tagString, '')
     const tags = tagString
@@ -128,10 +172,10 @@ const OrgViewer = ({ source, tocCallback, renderOptions = {}, ...props }) => {
       .map(t => ({ type: 'tag', value: t }))
 
     const childrenWithTags = [...children].concat(tags)
-    return renderElement(headerTag)(childrenWithTags, props)
+    return this.renderElement(headerTag)(childrenWithTags, props)
   }
 
-  const renderTag = ({ value }) => (
+  renderTag = ({ value }) => (
     <span
       key={randomId()}
       style={{
@@ -144,17 +188,19 @@ const OrgViewer = ({ source, tocCallback, renderOptions = {}, ...props }) => {
         marginLeft: '10px',
         padding: '0 10px',
       }}
-      {...opts.headerTag}
+      {...this.state.opts.renderTag}
     >
       {value}
     </span>
   )
 
-  const renderTable = ({ children }) => {
-    return <table key={randomId()}>{renderElement('tbody')(children)}</table>
+  renderTable = ({ children }) => {
+    return (
+      <table key={randomId()}>{this.renderElement('tbody')(children)}</table>
+    )
   }
 
-  const renderDefinitionList = ({ children }) => {
+  renderDefinitionList = ({ children }) => {
     const childNodes = []
     children.forEach(child => {
       let termValue
@@ -166,96 +212,88 @@ const OrgViewer = ({ source, tocCallback, renderOptions = {}, ...props }) => {
 
       // in case the term description is not provided
       if (termValue === '???') {
-        childNodes.push(renderElement('dt')(child.children))
+        childNodes.push(this.renderElement('dt')(child.children))
         return
       }
 
-      childNodes.push(renderElement('dt')(child.term))
-      childNodes.push(renderElement('dd')(child.children))
+      childNodes.push(this.renderElement('dt')(child.term))
+      childNodes.push(this.renderElement('dd')(child.children))
     })
 
     return <dl key={randomId()}>{childNodes}</dl>
   }
 
-  const renderNode = node => {
+  renderNode = node => {
     switch (node.type) {
       case 'text':
         return node.value
 
       case 'inlineContainer':
-        return renderInlineContainer(node)
+        return this.renderInlineContainer(node)
 
       case 'header':
-        return renderHeader(node)
+        return this.renderHeader(node)
 
       case 'link':
-        return renderLink(node)
+        return this.renderLink(node)
 
       case 'paragraph':
-        return renderElement('p')(node.children)
+        return this.renderElement('p')(node.children)
 
       case 'bold':
-        return renderElement('strong')(node.children)
+        return this.renderElement('strong')(node.children)
 
       case 'italic':
-        return renderElement('em')(node.children)
+        return this.renderElement('em')(node.children)
 
       case 'dashed':
-        return renderElement('del')(node.children)
+        return this.renderElement('del')(node.children)
 
       case 'underline':
-        return renderElement('ins')(node.children)
+        return this.renderElement('ins')(node.children)
 
       case 'code':
-        return renderElement('code')(node.children)
+        return this.renderElement('code')(node.children)
 
       case 'directive':
-        return renderDirective(node)
+        return this.renderDirective(node)
 
       case 'table':
-        return renderTable(node)
+        return this.renderTable(node)
 
       case 'tableRow':
-        return renderElement('tr')(node.children)
+        return this.renderElement('tr')(node.children)
 
       case 'tableCell':
-        return renderElement('td')(node.children)
+        return this.renderElement('td')(node.children)
 
       case 'orderedList':
-        return renderElement('ol')(node.children)
+        return this.renderElement('ol')(node.children)
 
       case 'unorderedList':
-        return renderElement('ul')(node.children)
+        return this.renderElement('ul')(node.children)
 
       case 'listElement':
-        return renderElement('li')(node.children)
+        return this.renderElement('li')(node.children)
 
       case 'definitionList':
-        return renderDefinitionList(node)
+        return this.renderDefinitionList(node)
 
       case 'horizontalRule':
         return <hr key={randomId()} />
 
       case 'preformatted':
-        return renderPreformatted(node)
+        return this.renderPreformatted(node)
 
       // added by the command "org-set-tags" in orgmode, appears at the end of
       // headers, :tag1:tag2:tag3:
       case 'tag':
-        return renderTag(node)
+        return this.renderTag(node)
 
       default:
         return null
     }
   }
-
-  return <div {...props}>{orgDocument.nodes.map(renderNode)}</div>
-}
-
-OrgViewer.propTypes = {
-  source: PropTypes.string.isRequired,
-  tocCallback: PropTypes.func,
-  renderOptions: PropTypes.object,
 }
 
 export default OrgViewer

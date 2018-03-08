@@ -5,7 +5,7 @@ export const getLastChild = node => {
 }
 
 export const getTagString = str => {
-  const match = str.match(/\s+:([\w-\s]+:?)+:/)
+  const match = str.match(/\s+:([\w-\s]+:?)+:$/)
   return match ? match[0] : null
 }
 
@@ -65,6 +65,13 @@ const generateIndex = (prevIndex, diff) => {
     .join('.')
 }
 
+const generateIndexWithPrefix = prefix => (prevIndex, diff) => {
+  const index = prevIndex
+    ? generateIndex(prevIndex.substring(prefix.length + 1), diff)
+    : generateIndex(null, diff)
+  return `${prefix}-${index}`
+}
+
 const Node = function(level, title, index, tags) {
   this.level = level
   this.title = title
@@ -92,7 +99,7 @@ const removeProps = (obj, keys) => {
   }
 }
 
-export const generateToc = headerNodes => {
+export const generateToc = prefix => headerNodes => {
   const root = new Node(0)
   let prevNode = root
 
@@ -109,7 +116,9 @@ export const generateToc = headerNodes => {
     }
 
     const diff = level - prevNode.level
-    const index = generateIndex(prevNode.index, diff)
+    const index = prefix
+      ? generateIndexWithPrefix(prefix)(prevNode.index, diff)
+      : generateIndex(prevNode.index, diff, prefix)
     headerNode.index = index
 
     // 2 step: construct a header tree for toc component
